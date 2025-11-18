@@ -1,49 +1,14 @@
 Finance Calculator - README
 
-This application is a Tkinter-based finance calculator that allows users
-to enter revenue and expense items, classify them as fixed or variable,
-and automatically compute key financial metrics.
+This is a simple Tkinter-based app for calculating basic financial
+metrics.
 
-Features
+Features: - Add revenue and expense items - Mark expenses as fixed or
+variable - Automatically calculates profit, taxes, and margins - Edit or
+delete items - Export summary as a text file - Change tax rate
 
--   Add revenue or expense items with amounts.
--   Mark expenses as fixed or variable.
--   Automatic calculation of:
-    -   Total revenue
-    -   Total fixed expenses
-    -   Total variable expenses
-    -   Gross profit
-    -   Operating profit
-    -   Taxes and net profit
-    -   Margins (gross, operating, net)
--   Item list viewing and deletion.
--   Clear all items.
--   Adjustable tax rate.
--   Export financial summary to a .txt file.
--   Preloaded sample items on startup.
+How to Use: 1. Run financecalculator.py 2. Enter item name, amount, and
+type 3. Click “Add Item” 4. View results in the summary panel 5. Use
+“Recalculate” after changing the tax rate
 
-How to Use
-
-1.  Run financecalculator.py.
-2.  Enter an item name and amount.
-3.  Select whether it is a revenue or expense item.
-4.  If it is an expense, optionally mark it as variable.
-5.  Add the item using the Add Item button.
-6.  View computed financial summaries in the bottom panel.
-7.  Adjust tax rate and recalculate when needed.
-8.  Export summary using the Export Summary button.
-
-Requirements
-
--   Python 3.x
--   Tkinter (comes bundled with most Python installations)
-
-Running the Application
-
-    python financecalculator.py
-
-Notes
-
--   Invalid numerical inputs default to 0.
--   Negative tax rates are not allowed.
--   The UI loads with sample items for demonstration.
+Run with: python financecalculator.py
