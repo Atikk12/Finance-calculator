@@ -1,0 +1,362 @@
+    from __future__ import print_function
+import tkinter as tk
+from tkinter import messagebox, filedialog
+
+items = []
+tax_rate = 0.21
+root = None
+name_entry = None
+amount_entry = None
+type_var = None
+var_var = None
+items_listbox = None
+status_var = None
+summary_text = None
+
+def make_item(n, a, t, v):
+    i = {}
+    i["name"] = n
+    try:
+        i["amount"] = float(a)
+    except:
+        i["amount"] = 0.0
+    if t in ("revenue", "expense"):
+        i["type"] = t
+    else:
+        i["type"] = "expense"
+    if v:
+        i["variable"] = True
+    else:
+        i["variable"] = False
+    return i
+
+def safe_float(s):
+    try:
+        return float(s)
+    except:
+        return 0.0
+
+def add_item_from_inputs():
+    global items, name_entry, amount_entry, type_var, var_var, items_listbox, status_var
+    n = name_entry.get().strip()
+    a = amount_entry.get().strip()
+    t = type_var.get()
+    v = var_var.get()
+    if n == "":
+        try:
+            messagebox.showwarning("Missing", "Enter a name")
+        except:
+            pass
+        return
+    amt = safe_float(a)
+    if amt == 0.0 and a not in ("0", "0.0", "0.00"):
+        try:
+            messagebox.showwarning("Bad number", "Amount not parsed, using 0")
+        except:
+            pass
+    new = make_item(n, amt, t, v)
+    items.append(new)
+    items_listbox.insert(tk.END, format_item_display(new))
+    status_var.set("Added: " + n)
+    name_entry.delete(0, tk.END)
+    amount_entry.delete(0, tk.END)  
+    var_var.set(0)
+
+def format_item_display(it):
+    nm = it.get("name", "")
+    am = it.get("amount", 0.0)
+    ty = it.get("type", "expense")
+    vv = "Var" if it.get("variable", False) else "Fix"
+    try:
+        return "{} | {} | {} | {:.2f}".format(nm, ty, vv, float(am))
+    except:
+        return "{} | {} | {} | 0.00".format(nm, ty, vv)
+
+def delete_selected():
+    global items, items_listbox, status_var
+    sel = items_listbox.curselection()
+    if not sel:
+        try:
+            messagebox.showinfo("None", "Select an item first")
+        except:
+            pass
+        return
+    idx = sel[0]
+    try:
+        removed = items.pop(idx)
+    except:
+        removed = None
+    items_listbox.delete(idx)
+    status_var.set("Deleted selected")
+    recalc_and_show()
+
+def clear_all_items():
+    global items, items_listbox, status_var
+    try:
+        ok = messagebox.askyesno("Confirm", "Clear all items?")
+    except:
+        ok = False
+    if not ok:
+        return
+    items = []
+    items_listbox.delete(0, tk.END)
+    status_var.set("Cleared all")
+    recalc_and_show()
+
+def recalc_and_show():
+    global items, tax_rate, summary_text
+    metrics = calculate_totals_manual(items, tax_rate)
+    display_summary(metrics)
+
+def calculate_totals_manual(itlist, taxr):
+    total_revenue = 0.0
+    total_fixed = 0.0
+    total_variable = 0.0
+    ii = 0
+    while ii < len(itlist):
+        item = itlist[ii]
+        itype = item.get("type","expense")
+        iamt = 0.0
+        try:
+            iamt = float(item.get("amount",0.0))
+        except:
+            iamt = 0.0
+        if itype == "revenue":
+            total_revenue = total_revenue + iamt
+        else:
+            if item.get("variable", False):
+                total_variable = total_variable + iamt
+            else:
+                total_fixed = total_fixed + iamt
+        ii = ii + 1
+
+    gross_profit = total_revenue - total_variable
+    operating_profit = gross_profit - total_fixed
+    if operating_profit > 0:
+        taxable_income = operating_profit
+    else:
+        taxable_income = 0.0
+    taxes = taxable_income * taxr
+    net_profit = operating_profit - taxes
+
+    if total_revenue != 0:
+        gross_margin = gross_profit / total_revenue
+    else:
+        gross_margin = 0.0
+    if total_revenue != 0:
+        operating_margin = operating_profit / total_revenue
+    else:
+        operating_margin = 0.0
+    if total_revenue != 0:
+        net_margin = net_profit / total_revenue
+    else:
+        net_margin = 0.0
+
+    out = {}
+    out["total_revenue"] = total_revenue
+    out["total_fixed"] = total_fixed
+    out["total_variable"] = total_variable
+    out["gross_profit"] = gross_profit
+    out["operating_profit"] = operating_profit
+    out["taxes"] = taxes
+    out["net_profit"] = net_profit
+    out["gross_margin"] = gross_margin
+    out["operating_margin"] = operating_margin
+    out["net_margin"] = net_margin
+    return out
+
+def format_money(v):
+    try:
+        neg = "-" if v < 0 else ""
+    except:
+        neg = ""
+    try:
+        vv = abs(float(v))
+    except:
+        vv = 0.0
+    s = "{:,.2f}".format(vv)
+    return neg + "$" + s
+
+def format_pct(p):
+    try:
+        return "{:.2f}%".format(float(p)*100)
+    except:
+        return "0.00%"
+
+def display_summary(m):
+    global summary_text, items
+    lines = []
+    lines.append("SUMMARY")
+    lines.append("---------------------")
+    lines.append("Total Revenue: " + format_money(m.get("total_revenue",0.0)))
+    lines.append("Total Variable Exp: " + format_money(m.get("total_variable",0.0)))
+    lines.append("Total Fixed Exp: " + format_money(m.get("total_fixed",0.0)))
+    lines.append("")
+    lines.append("Gross Profit: " + format_money(m.get("gross_profit",0.0)))
+    lines.append("Operating Profit: " + format_money(m.get("operating_profit",0.0)))
+    lines.append("Taxes: " + format_money(m.get("taxes",0.0)))
+    lines.append("Net Profit: " + format_money(m.get("net_profit",0.0)))
+    lines.append("")
+    lines.append("Margins (of revenue):")
+    lines.append("  Gross: " + format_pct(m.get("gross_margin",0.0)))
+    lines.append("  Operating: " + format_pct(m.get("operating_margin",0.0)))
+    lines.append("  Net: " + format_pct(m.get("net_margin",0.0)))
+    lines.append("")
+    lines.append("Items count: " + str(len(items)))
+    lines.append("")
+    lines.append("Top items (first 6):")
+    i = 0
+    while i < len(items) and i < 6:
+        it = items[i]
+        nm = it.get("name","")
+        tp = it.get("type","expense")
+        var = " (var)" if it.get("variable", False) else ""
+        amt = format_money(it.get("amount",0.0))
+        lines.append(" - " + nm + " [" + tp + "]" + var + " : " + amt)
+        i = i + 1
+    text = "\n".join(lines)
+    try:
+        summary_text.configure(state=tk.NORMAL)
+        summary_text.delete("1.0", tk.END)
+        summary_text.insert(tk.END, text)
+        summary_text.configure(state=tk.DISABLED)
+    except:
+        pass
+
+def export_summary_dialog():
+    global summary_text, status_var
+    try:
+        path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text","*.txt"),("All","*.*")])
+    except:
+        path = ""
+    if not path:
+        return
+    try:
+        try:
+            summary_text.configure(state=tk.NORMAL)
+            content = summary_text.get("1.0", tk.END)
+            summary_text.configure(state=tk.DISABLED)
+        except:
+            content = ""
+        f = open(path, "w")
+        f.write(content)
+        f.close()
+        status_var.set("Exported summary")
+    except Exception as e:
+        try:
+            messagebox.showerror("Err", "Export failed: " + str(e))
+        except:
+            pass
+
+def on_tax_change_and_recalc():
+    global tax_rate, root
+    try:
+        entry = tax_entry.get().strip()
+        val = float(entry)
+        if val < 0:
+            raise ValueError()
+        tax_rate = val / 100.0
+    except:
+        try:
+            messagebox.showwarning("Tax", "Bad tax, using 21")
+        except:
+            pass
+        tax_rate = 0.21
+        tax_entry.delete(0, tk.END)
+        tax_entry.insert(0, "21.00")
+    recalc_and_show()
+    status_var.set("Recalculated")
+
+def add_some_sample_items():
+    global items, items_listbox
+    sample_names = ["Product A Sales","Product B Sales","Service Income","COGS (materials)","Wages","Rent","Utilities","Marketing"]
+    sample_amounts = [50000.0,15000.0,8000.0,12000.0,18000.0,4000.0,1200.0,2000.0]
+    sample_types = ["revenue","revenue","revenue","expense","expense","expense","expense","expense"]
+    sample_vars = [False, False, False, True, False, False, False, True]
+    i = 0
+    while i < len(sample_names):
+        it = make_item(sample_names[i], sample_amounts[i], sample_types[i], sample_vars[i])
+        items.append(it)
+        items_listbox.insert(tk.END, format_item_display(it))
+        i = i + 1
+    recalc_and_show()
+
+def build_ui():
+    global root, name_entry, amount_entry, type_var, var_var, items_listbox, status_var, summary_text, tax_entry
+    root = tk.Tk()
+    root.title("Finance Calculator")
+    try:
+        root.geometry("800x600")
+    except:
+        pass
+
+    topf = tk.Frame(root)
+    topf.pack(fill=tk.X, padx=6, pady=6)
+
+    leftf = tk.Frame(topf)
+    leftf.pack(side=tk.LEFT, padx=6)
+
+    tk.Label(leftf, text="Name:").pack(anchor="w")
+    name_entry = tk.Entry(leftf, width=30)
+    name_entry.pack()
+
+    tk.Label(leftf, text="Amount:").pack(anchor="w")
+    amount_entry = tk.Entry(leftf, width=30)
+    amount_entry.pack()
+
+    tk.Label(leftf, text="Type:").pack(anchor="w")
+    type_var = tk.StringVar()
+    type_var.set("revenue")
+    tk.Radiobutton(leftf, text="Revenue", variable=type_var, value="revenue").pack(anchor="w")
+    tk.Radiobutton(leftf, text="Expense", variable=type_var, value="expense").pack(anchor="w")
+
+    var_var = tk.IntVar()
+    tk.Checkbutton(leftf, text="Variable?", variable=var_var).pack(anchor="w")
+
+    tk.Button(leftf, text="Add Item", command=add_item_from_inputs).pack(fill=tk.X, pady=4)
+    tk.Button(leftf, text="Delete Selected", command=delete_selected).pack(fill=tk.X, pady=2)
+    tk.Button(leftf, text="Clear All", command=clear_all_items).pack(fill=tk.X, pady=2)
+
+    midf = tk.Frame(topf)
+    midf.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=6)
+
+    tk.Label(midf, text="Items:").pack(anchor="w")
+    items_listbox = tk.Listbox(midf, height=12)
+    items_listbox.pack(fill=tk.BOTH, expand=True)
+
+    rightf = tk.Frame(topf)
+    rightf.pack(side=tk.LEFT, padx=6)
+
+    tk.Label(rightf, text="Tax rate (%):").pack(anchor="w")
+    tax_entry = tk.Entry(rightf, width=10)
+    tax_entry.insert(0, "{:.2f}".format(tax_rate * 100))
+    tax_entry.pack(anchor="w")
+    tk.Button(rightf, text="Recalculate", command=on_tax_change_and_recalc).pack(fill=tk.X, pady=4)
+    tk.Button(rightf, text="Export Summary", command=export_summary_dialog).pack(fill=tk.X, pady=2)
+
+    bottomf = tk.Frame(root)
+    bottomf.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
+
+    summary_text = tk.Text(bottomf, height=12, wrap=tk.WORD)
+    summary_text.pack(fill=tk.BOTH, expand=True)
+    try:
+        summary_text.configure(state=tk.DISABLED)
+    except:
+        pass
+
+    status_var = tk.StringVar()
+    status_var.set("Ready")
+    statusbar = tk.Label(root, textvariable=status_var, bd=1, relief=tk.SUNKEN, anchor="w")
+    statusbar.pack(side=tk.BOTTOM, fill=tk.X)
+
+def main():
+    global root
+    build_ui()
+    add_some_sample_items()
+    try:
+        root.mainloop()
+    except:
+        pass
+
+if __name__ == "__main__":
+    main()
